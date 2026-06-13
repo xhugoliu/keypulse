@@ -33,6 +33,12 @@
 
 桌面接收端收到有效 frame 时分配的时间戳。固件不发送 host time。
 
+## 本地实验基线
+
+KeyPulse v0 不是 `minix-insight` 旧协议的重命名。当前 miniX/QMK 实验使用 32 字节 `KS` Raw HID 报文，字段为 row、col、pressed、active layer、QMK time、keycode 和 sequence。它已经证明物理按键事件链路可行，但缺少 v0 需要的 hello、capabilities、profile 匹配、position、source side 和 layer bitmap。
+
+实现 v0 parser 时可以保留旧 `KS` fixture 用于迁移测试或导入测试，但 live protocol 应以 `KP` frame32 为准。
+
 ## 消息类型
 
 | Type | 名称 | 用途 |
@@ -164,12 +170,14 @@ Device hello 不需要携带完整的人类可读名称。接收端通过 `profi
 - 需要 QMK `RAW_ENABLE = yes`。
 - 使用 QMK Raw HID 接口，通常通过 VID、PID、usage page 和 usage ID 过滤。
 - 某些主机 API 可能带一个前置 report ID 字节，接收端必须容忍。
+- miniX 现有 Vial build 中，`VIA_ENABLE` 会间接打开 `RAW_ENABLE`。KeyPulse adapter 应显式声明自己的依赖，避免依赖 Vial/VIA 的副作用。
 
 ### `zmk-usb-serial-frame32`
 
-- 通过 USB serial stream 发送 `frame32` 消息。
+- 候选方案：通过 USB serial stream 发送 `frame32` 消息。
 - stream framing 仍待确认。候选方案包括 COBS、SLIP，或 magic scan + checksum。
 - 只有在 macOS 和 Windows 上验证 serial read 足够稳定时，第一版才可以直接使用 32 字节 chunk。
+- pskeeb5 当前右半边已经通过 `studio-rpc-usb-uart` 启用 USB CDC ACM 和 ZMK Studio RPC。KeyPulse 不能默认占用同一个 stream，必须先验证独立 CDC ACM、复用 RPC、自定义 HID 三种路径中的哪一种最稳。
 
 ## 兼容策略
 
@@ -205,4 +213,3 @@ v1 之后：
 - 层状态。
 - 时间信息。
 - 用于 profile 匹配的设备身份。
-

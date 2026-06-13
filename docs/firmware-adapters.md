@@ -49,6 +49,18 @@ pre_process_record_user(...)
 | `keycode` | hook 参数 |
 | `position` | profile 根据 row/col 查表 |
 
+### miniX 现有实验约束
+
+当前 `QMK-Keyboard/minix/keymaps/vial/keymap.c` 已经在 `pre_process_record_user` 中发送旧 `KS` Raw HID 报文。这证明 hook 位置和 Raw HID 链路可用，但它不是 KeyPulse adapter 的最终形态。
+
+迁移到 KeyPulse 时需要显式处理：
+
+- 旧 `KS` 报文没有 hello、capabilities、profile hash、position、source side 或 `layer_state` bitmap。
+- 当前 miniX 只发送 row/col，position 应由 `xtips-minix` profile 从 QMK layout 顺序推导。
+- miniX keymap 依赖 `VIA_ENABLE` 间接启用 `RAW_ENABLE`；共享 adapter 应提供明确的 build 开关，避免只在 Vial keymap 中可用。
+- `raw_hid_send()` 和 Vial/VIA 共用 Raw HID interface，host 侧必须把 Vial/WebHID 占用视为正常状态，而不是协议错误。
+- 旧 `KS` 报文可以作为本地 replay/fixture 来源，但 KeyPulse v0 不应承诺在线兼容。
+
 ### 首批 QMK 目标
 
 - X.Tips miniX。
@@ -80,6 +92,19 @@ ZMK 是一等目标，但不应被强行塞进 QMK Raw HID 的形状里。适配
 - 它避免把整个协议绑定到 Raw HID。
 
 如果 serial 对发布版太别扭，再评估 custom HID。
+
+### pskeeb5 现有本地约束
+
+`zmk-config-pskeeb5` 当前没有 KeyPulse adapter，但已经暴露出第一版实现必须尊重的边界：
+
+- build target 是 `nice_nano_v2` + `pskeeb5_left` / `pskeeb5_right`。
+- 右半边是 ZMK split central side；左半边是 BLE split peripheral。
+- 右半边 build 使用 `studio-rpc-usb-uart` snippet，生成配置启用 USB CDC ACM、ZMK Studio RPC、USB HID、serial、mouse/pointing。
+- `pskeeb5_right.overlay` 已经用 UART driver 接 PS/2 trackpoint；不要假设硬件 UART 空闲。
+- `pskeeb5_layouts.dtsi` 定义 10x4 transform 和 38 个 physical positions，右半边 `col-offset = <5>`。
+- 当前用户 keymap 有 6 层、combos、conditional layer、hold-tap/layer-tap、encoders 和 pointing device 行为；KeyPulse v0 应先记录物理 position 事件和 layer 状态，不要试图在固件端解释这些高级行为。
+
+因此，ZMK 原型的第一个问题不是“serial 能不能发 32 字节”，而是“KeyPulse frame 应走独立 USB CDC ACM、复用 Studio RPC transport、还是改成 custom HID”。在没有验证前，`zmk-usb-serial-frame32` 只能视为候选 transport。
 
 ### ZMK 数据映射
 

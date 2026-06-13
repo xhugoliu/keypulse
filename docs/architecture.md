@@ -42,9 +42,11 @@ Transport profile 定义主机通信方式。
 第一批 profile：
 
 - `qmk-raw-hid-32`：QMK Raw HID，使用 32 字节 report。
-- `zmk-usb-serial-frame32`：ZMK USB serial，承载 32 字节 KeyPulse frame。
+- `zmk-usb-serial-frame32`：ZMK USB serial 候选 profile，承载 32 字节 KeyPulse frame。
 
 未来可以加入自定义 HID endpoint、WebHID 友好封装、BLE GATT 或文件导入。
+
+本地约束说明：miniX/QMK 已证明 Raw HID 可行；pskeeb5/ZMK 当前右半边已有 USB CDC ACM/ZMK Studio RPC 和 PS/2 trackpoint UART 约束，所以 ZMK serial 仍是候选而非已定实现。
 
 ### 协议核心
 
@@ -77,6 +79,8 @@ Transport profile 定义主机通信方式。
 - `layer_events`：可选的层状态变化。
 - `sessions`：应用记录区间和 transport 状态。
 - `profiles`：已安装 profile 元数据和版本。
+
+存储层应保留足够原始事实，以便重算派生指标。`minix-insight` 已验证的最小事实集是 host time、device time、sequence、row、col、pressed、layer、keycode；KeyPulse 还需要补充 device/profile/transport 身份、position、source side、layer_state、协议版本和解析状态。
 
 ## 数据流
 
@@ -127,5 +131,5 @@ keypulse/
 - QMK 和 ZMK 共享一套归一化事件模型。
 - 固件到主机使用紧凑二进制 frame。
 - QMK Raw HID 是受 32 字节约束的实现 profile。
-- ZMK 是一等固件体系，不是 QMK Raw HID 的兼容层。
+- ZMK 是一等固件体系，不是 QMK Raw HID 的兼容层；pskeeb5 的第一版 transport 需要在独立 USB CDC ACM、ZMK Studio RPC 和 custom HID 之间验证。
 - 键盘 profile 不写死在前端编译产物里。

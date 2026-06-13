@@ -17,6 +17,14 @@ GitHub: https://github.com/xhugoliu/minix-insight
 
 KeyPulse 应复用这些经验，但不复用旧报文格式。
 
+本地代码约束：
+
+- `Sources/MinixInsightCore/TelemetryPacket.swift` 解析 32 字节 `KS` 报文，同时容忍 macOS HID 回调里多出的前置 report ID 字节。
+- `Sources/MinixInsightCore/TelemetryCollector.swift` 使用 IOHIDManager 匹配 miniX 的 VID/PID `0x5262:0x4e4b`、usage page `0xff60`、usage `0x61`。
+- 同一 Raw HID interface 会被 Vial 或 WebHID 页面占用，实验应用已经把 open 失败显示为 `Raw HID busy`。
+- `Sources/MinixInsightCore/SQLiteDatabase.swift` 当前存储字段为 `host_time_iso`、`host_time_ns`、`qmk_time_ms`、`seq`、`row`、`col`、`pressed`、`layer`、`keycode`。
+- `Sources/MinixInsightCore/TelemetrySummary.swift` 通过同一 row/col 的 down/up 事件配对计算按住时长，使用 QMK 毫秒计时，并丢弃超过 12 小时的单次长按来规避设备重启或计时异常。
+
 ### `QMK-Keyboard`
 
 GitHub: https://github.com/xhugoliu/QMK-Keyboard
@@ -27,6 +35,13 @@ GitHub: https://github.com/xhugoliu/QMK-Keyboard
 - Python HID logger。
 - CSV summary script。
 - 本地 QMK build helper。
+
+本地代码约束：
+
+- `minix/keymaps/vial/keymap.c` 直接 `#include "raw_hid.h"`，在 `pre_process_record_user` 中调用 `raw_hid_send()`。
+- 现有报文是旧 `KS` 格式：magic、version、type、row、col、pressed、active layer、`timer_read32()`、keycode、sequence。它没有 `device_hello`、capabilities、profile hash、position、source side 或 layer bitmap。
+- `minix/keymaps/vial/rules.mk` 只显式设置 `VIA_ENABLE = yes`、`VIAL_ENABLE = yes`、`VIAL_INSECURE = yes`。在本地 `vial-qmk/builddefs/common_features.mk` 中，`VIA_ENABLE` 会把 `RAW_ENABLE` 置为 yes；KeyPulse 适配器不应把这个间接关系当作唯一前提。
+- miniX `072c` 和 `103c` 的 `keyboard.json` 都定义同一套 6 rows x 5 columns 分体矩阵、VID/PID `0x5262:0x4e4b` 和 `dynamic_keymap.layer_count = 9`。
 
 ### `zmk-config-pskeeb5`
 
@@ -40,6 +55,14 @@ GitHub: https://github.com/xhugoliu/zmk-config-pskeeb5
 - Encoders。
 - Trackpoint 和 mouse 相关控制。
 - 真实分体键盘配置。
+
+本地代码约束：
+
+- `config/pskeeb5.keymap` 是当前用户 keymap 覆盖，包含 6 层、hold-tap、layer-tap、combos、conditional layer、双 encoder 绑定和 mouse/pointing 行为。
+- 实际 shield 文件在 `.zmk/workspace/zmk/app/boards/shields/pskeeb5/`。`pskeeb5_layouts.dtsi` 定义 10 columns x 4 rows 的 matrix transform，以及 38 个 physical-layout key attributes。
+- `pskeeb5_right.overlay` 对 `default_transform` 设置 `col-offset = <5>`；`Kconfig.defconfig` 把右半边设为 `ZMK_SPLIT_ROLE_CENTRAL`。因此第一版如果只选一个 ZMK 发射端，应优先验证右半边/central side。
+- 本地 build matrix 和 `scripts/local-zmk-build.sh` 都对右半边使用 `-S studio-rpc-usb-uart`；生成配置显示右半边启用 USB CDC ACM、serial、ZMK Studio RPC、USB HID、mouse/pointing，左半边是 split peripheral 且未启用 serial。
+- 右半边已有 PS/2 trackpoint 通过 UART driver 接入，ZMK Studio 也占用 USB UART/RPC 语义。KeyPulse 不能默认把现有 `studio-rpc-usb-uart` 当作空闲 byte stream。
 
 ## 相关项目与本地环境
 

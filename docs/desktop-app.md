@@ -45,6 +45,13 @@
 
 Driver 应向协议解析器暴露归一化的字节流或 frame 流。
 
+本地实验提示：
+
+- macOS HID 回调可能给 32 字节 Raw HID report 加一个前置 report ID 字节，HID driver 应在 transport 层容忍 32 或 33 字节输入。
+- miniX 现有匹配线索是 VID/PID `0x5262:0x4e4b`、usage page `0xff60`、usage `0x61`。
+- Vial 或 WebHID 占用同一 Raw HID interface 时，打开失败应显示为 interface busy。
+- pskeeb5 右半边当前生成 USB CDC ACM 是为了 ZMK Studio RPC；Serial driver 必须区分 KeyPulse stream、Studio RPC stream 和普通 debug/logging serial。
+
 ### Protocol Parser
 
 校验内容：
@@ -75,6 +82,8 @@ SQLite 是第一版预期存储后端。
 
 优先保存原始归一化事实。派生摘要可以重算，除非后续性能证明需要缓存。
 
+`minix-insight` 已验证的最小事件事实包括 host time、device time、sequence、row、col、pressed、layer 和 keycode。KeyPulse schema 应在此基础上增加 device/profile/transport 身份、position、source side、layer_state、parse status 和 protocol version。
+
 ### Aggregator
 
 计算：
@@ -88,6 +97,8 @@ SQLite 是第一版预期存储后端。
 - 左右手负载。
 - 拇指键负载。
 - 高频位置。
+
+按住时长的第一版算法可以沿用实验项目的策略：同一 device/profile/position 的 down/up 配对，使用固件单调时间计算 elapsed，并显式处理 `u32` 回绕和设备重启后的离谱长按。
 
 ## 前端视图
 
